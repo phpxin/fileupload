@@ -1,0 +1,150 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>大文件上传示例</title>
+
+</head>
+<body>
+<p>
+    <div id="uuz" style="width:100px;height:100px;background-color:#ff9900;"></div>
+</p>
+<p><button id="upload" onclick="singleFileUpload()" style="float:left">上传</button></p>
+
+<script src="jquery-1.6.2.min.js" type="text/javascript"></script>
+<script>
+
+    var quence = new Array();//待上传的文件队列，包含切块的文件
+
+    var wfile = null ;
+    window.onload = function(){
+        var uuz = document.getElementById('uuz');
+
+        uuz.ondragenter = function(e){
+            e.preventDefault();
+        }
+
+        uuz.ondragover = function(e){
+            e.preventDefault();
+            this.innerHTML = '请松开';
+        }
+
+        uuz.ondragleave = function(e){
+            e.preventDefault();
+            this.innerHTML = '请拖入要上传的文件';
+        }
+
+        uuz.ondrop = function(e){
+            e.preventDefault();
+            wfile = e.dataTransfer.files;
+        }
+    }
+
+
+    var ticket = '' ;
+
+    function singleFileUpload(){
+
+        if (!wfile){
+            alert('no file')
+            return false ;
+        }
+        var f = wfile ;
+        var file = f[0];
+        fileSize = file.size
+        fileName = file.name
+
+        //获取 ticket 
+        var reqData = {
+            
+            'filename' : fileName ,
+            'filesize' : fileSize 
+        } ;
+
+        $.post('server/bigfile.php?act=getTicket', reqData, function(jsondata){
+            if (jsondata.code == 10001) {
+                
+                ticket = jsondata.data.ticket ;
+
+                var chunkSize = 2 * 1024 * 1024;  //切块的阀值：3M
+                
+                var url = 'server/bigfile.php?act=upload' ;
+                var alreadyPackageIndexCollection = [] ;
+                if(file.size > chunkSize) {//文件大于阀值，进行切块
+                    //切块发送
+                    var chunks = Math.max(Math.floor(file.size / chunkSize), 1)+1;//分割块数
+                    for(var i=0 ; i<chunks; i++) {
+                        var startIdx = i*chunkSize;//块的起始位置
+                        var endIdx = startIdx+chunkSize;//块的结束位置
+                        if(endIdx > fileSize) {
+                            endIdx = fileSize;
+                        }
+                        var lastChunk = false;
+                        if(i == (chunks-1)) {
+                            lastChunk = true;
+                        }
+
+                        var formData = new FormData();
+                        formData.append("ticket", ticket);
+                        formData.append("filename", file.name);
+                        formData.append("filesize", file.size);
+                        formData.append("chunked",  true);
+                        formData.append("filedata", file.slice(startIdx, endIdx));//截取文件块
+                        formData.append("chunk_index", i);
+                        formData.append("chunk_total", chunks);
+
+                        var req = new XMLHttpRequest();
+                        req.responseType = "json";
+
+                        req.addEventListener("load", function(){
+                            console.log(this.response)
+                            var _jsondata = this.response ;
+                            if(_jsondata.code==10001){
+
+                                
+                                 alreadyPackageIndexCollection.push('a') ;
+                                console.log(alreadyPackageIndexCollection)
+
+
+                                if(alreadyPackageIndexCollection.length == chunks){
+                                    // merge
+                                    var mergeData = {
+                                        'ticket' : ticket ,
+                                        'chunk_total' : chunks ,
+                                        'filename' : file.name ,
+                                        'filesize' : file.size ,
+                                        
+                                    } ;
+                                    $.post('server/bigfile.php?act=merge', mergeData, function(jsondata){
+                                        if(jsondata.code==10001){
+                                            alert('success') ;
+                                        }else{
+                                            alert(jsondata.data.msg) ;
+                                        }
+                                    });
+                                }
+                            }
+
+                        });
+
+
+                        req.open("POST", url);
+                        req.send(formData);
+                    }
+                }
+
+                
+
+            }else{
+                alert(jsondata.data.msg);
+            }
+        }) ;
+
+        
+    }
+
+
+
+</script>
+</body>
+</html>
