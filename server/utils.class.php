@@ -3,7 +3,41 @@ include_once "config.php" ;
 
 class utils{
 
-	public function extName($filename){
+	public static function unlinkFolder($folder){
+
+		if (!file_exists($folder)) {
+			# code...
+			return false;
+		}
+
+		if (!is_dir($folder)) {
+			unlink($folder) ;
+		}
+
+		$dir = opendir($folder) ;
+
+		while(($f_item = readdir($dir)) !== false) {
+			
+			if ($f_item=='.' || $f_item=='..') {
+				# code...
+				continue ;
+			}
+			$f_path = rtrim($folder, '/').'/'.ltrim($f_item, '/') ;
+			
+			if (is_dir($f_path)) {
+				self::unlinkFolder($f_path) ;
+			}else{
+
+				unlink($f_path) ;
+			}
+		}
+
+		rmdir($folder);
+
+		return true;
+	}	
+
+	public static function extName($filename){
 		
 		$filename = strtolower($filename) ;
 

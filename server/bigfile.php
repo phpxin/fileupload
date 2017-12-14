@@ -110,6 +110,11 @@ class bigfileAction{
 
 		$srcDir = $ticketData['chunk_path'] ;
 
+		if (!file_exists($srcDir)) {
+			# code...
+			return apiData::getErrArr(apiData::CODE_ERR, 'src dir not exists') ;
+		}
+
 		$dstDir = BIGFILES_DIR.date("Y/m/d/");
 		if (!file_exists($dstDir)) {
 			mkdir($dstDir, 0777, true) ;
@@ -133,12 +138,15 @@ class bigfileAction{
 			fclose($fpWrite);
 		}
 
+		// 删除块文件 ：根据具体需求决定是否删除块文件
+		// utils::unlinkFolder($srcDir) ;
+
 		if (!$dataFlag) {
 			return apiData::getErrArr(apiData::CODE_ERR, 'data broken') ;
 		}
 
 
-		return apiData::getOk(['filename' => $filename]) ;
+		return apiData::getOk(['filename' => $dstFile]) ;
 
 		
 	}
